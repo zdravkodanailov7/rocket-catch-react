@@ -9,12 +9,15 @@ function App() {
   useEffect(() => {
     let rocketX = 100
     let rocketY = 100
+    let angle = 0
+    let angularVelocity = 0
     let vy = 0
+    let vx = 0
     const gravity = 0.02
     const keys = new Set<string>()
     const thrust = 0.05
     let frameId = 0
-
+    const turnThrust = 0.0005
     const keydownHandler = (e: KeyboardEvent) => {
       keys.add(e.key)
     }
@@ -41,31 +44,40 @@ function App() {
     }
     
     const drawRocket = () => {
+      const centerX = rocketX + rocketWidth / 2
+      const centerY = rocketY + rocketHeight / 2
+
+      ctx.save()
+      ctx.translate(centerX, centerY)
+      ctx.rotate(angle)
+
       // body
       ctx.fillStyle = 'white'
-      ctx.fillRect(rocketX, rocketY, rocketWidth, rocketHeight)
+      ctx.fillRect(-rocketWidth / 2, -rocketHeight / 2, rocketWidth, rocketHeight)
 
-      //nose
+      // nose
       ctx.fillStyle = 'red'
       ctx.beginPath()
-      ctx.moveTo(rocketX + (rocketHeight / 4), rocketY - 50)
-      ctx.lineTo(rocketX, rocketY)
-      ctx.lineTo(rocketX + rocketWidth, rocketY)
+      ctx.moveTo(0, -rocketHeight / 2 - 50)
+      ctx.lineTo(-rocketWidth / 2, -rocketHeight / 2)
+      ctx.lineTo(rocketWidth / 2, -rocketHeight / 2)
       ctx.closePath()
       ctx.fill()
 
       // engine
       ctx.fillStyle = '#444'
-      ctx.fillRect(rocketX + 15, rocketY + rocketHeight, 20, 20)
+      ctx.fillRect(-10, rocketHeight / 2, 20, 20)
 
       // flame
       ctx.fillStyle = 'orange'
       ctx.beginPath()
-      ctx.moveTo(rocketX + 15, rocketY + rocketHeight + 20)
-      ctx.lineTo(rocketX + rocketWidth / 2, rocketY + rocketHeight + 60)
-      ctx.lineTo(rocketX + 35, rocketY + rocketHeight + 20)
+      ctx.moveTo(-10, rocketHeight / 2 + 20)
+      ctx.lineTo(0, rocketHeight / 2 + 60)
+      ctx.lineTo(10, rocketHeight / 2 + 20)
       ctx.closePath()
       ctx.fill()
+
+      ctx.restore()
     }
 
     const drawHUD = () => {
@@ -75,14 +87,27 @@ function App() {
 
       ctx.fillText(`vy: ${vy.toFixed(2)}`, canvas.width - 16, 24)
       ctx.fillText(`y: ${rocketY.toFixed(2)}`, canvas.width - 16, 48)
+      ctx.fillText(`vx: ${vx.toFixed(2)}`, canvas.width - 16, 72)
+      ctx.fillText(`angle: ${angle.toFixed(2)}`, canvas.width - 16, 96)
     }
 
     const loop = () => {
       drawBackground()
 
+      // vertical movement
       vy += gravity
-      if (keys.has('w')) vy -= thrust
+      if (keys.has('w')) {
+        vx += Math.sin(angle) * thrust
+        vy -= Math.cos(angle) * thrust
+      }
       rocketY += vy
+      rocketX += vx
+
+      // rotation movement
+      if (keys.has('a')) angularVelocity -= turnThrust
+      if (keys.has('d')) angularVelocity += turnThrust
+      angle += angularVelocity
+      angularVelocity *= 0.98
 
       drawRocket()
       drawHUD()
