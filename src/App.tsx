@@ -7,12 +7,14 @@ function App() {
   const rocketHeight = 100
 
   useEffect(() => {
-    let rocketX = 100
-    let rocketY = 100
-    let angle = 0
-    let angularVelocity = 0
-    let vy = 0
-    let vx = 0
+    const rocket = {
+      x: 100,
+      y: 100,
+      vx: 0,
+      vy: 0,
+      angle: 0,
+      angularVelocity: 0,
+    }
     const gravity = 0.02
     const keys = new Set<string>()
     const thrust = 0.05
@@ -44,12 +46,12 @@ function App() {
     }
     
     const drawRocket = () => {
-      const centerX = rocketX + rocketWidth / 2
-      const centerY = rocketY + rocketHeight / 2
+      const centerX = rocket.x + rocketWidth / 2
+      const centerY = rocket.y + rocketHeight / 2
 
       ctx.save()
       ctx.translate(centerX, centerY)
-      ctx.rotate(angle)
+      ctx.rotate(rocket.angle)
 
       // body
       ctx.fillStyle = 'white'
@@ -85,29 +87,29 @@ function App() {
       ctx.font = '16px monospace'
       ctx.textAlign = 'right'
 
-      ctx.fillText(`vy: ${vy.toFixed(2)}`, canvas.width - 16, 24)
-      ctx.fillText(`y: ${rocketY.toFixed(2)}`, canvas.width - 16, 48)
-      ctx.fillText(`vx: ${vx.toFixed(2)}`, canvas.width - 16, 72)
-      ctx.fillText(`angle: ${angle.toFixed(2)}`, canvas.width - 16, 96)
+      ctx.fillText(`rocket.vy: ${rocket.vy.toFixed(2)}`, canvas.width - 16, 24)
+      ctx.fillText(`y: ${rocket.y.toFixed(2)}`, canvas.width - 16, 48)
+      ctx.fillText(`rocket.vx: ${rocket.vx.toFixed(2)}`, canvas.width - 16, 72)
+      ctx.fillText(`rocket.angle: ${rocket.angle.toFixed(2)}`, canvas.width - 16, 96)
     }
 
     const loop = () => {
       drawBackground()
 
       // vertical movement
-      vy += gravity
+      rocket.vy += gravity
       if (keys.has('w')) {
-        vx += Math.sin(angle) * thrust
-        vy -= Math.cos(angle) * thrust
+        rocket.vx += Math.sin(rocket.angle) * thrust
+        rocket.vy -= Math.cos(rocket.angle) * thrust
       }
-      rocketY += vy
-      rocketX += vx
+      rocket.y += rocket.vy
+      rocket.x += rocket.vx
 
       // rotation movement
-      if (keys.has('a')) angularVelocity -= turnThrust
-      if (keys.has('d')) angularVelocity += turnThrust
-      angle += angularVelocity
-      angularVelocity *= 0.98
+      if (keys.has('a')) rocket.angularVelocity -= turnThrust
+      if (keys.has('d')) rocket.angularVelocity += turnThrust
+      rocket.angle += rocket.angularVelocity
+      rocket.angularVelocity *= 0.98
 
       drawRocket()
       drawHUD()
