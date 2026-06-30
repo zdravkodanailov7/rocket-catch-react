@@ -23,8 +23,10 @@ function App() {
     let frameId = 0
     const turnThrust = 0.0005
     let gameState: 'playing' | 'landed' | 'crashed' = 'playing'
+    let resultMessage = ''
 
     const resetGame = () => {
+      resultMessage = ''
       rocket = createRocket()
       gameState = 'playing'
     }
@@ -47,6 +49,14 @@ function App() {
     canvas.height = window.innerHeight
     const groundY = canvas.height - 40
     
+    const pad = {
+      x: canvas.width / 2 - 75,
+      y: groundY,
+      width: 150,
+      height: 8,
+    }
+
+      
     window.addEventListener('keydown', keydownHandler)
     window.addEventListener('keyup', keyupHandler)
 
@@ -58,6 +68,9 @@ function App() {
     const drawGround = () => {
       ctx.fillStyle = '#166534'
       ctx.fillRect(0, groundY, canvas.width, 40)
+
+      ctx.fillStyle = '#eab308'
+      ctx.fillRect(pad.x, pad.y, pad.width, pad.height)
     }
     
     const drawRocket = () => {
@@ -134,10 +147,25 @@ function App() {
       
       if (gameState === 'playing' && rocketBottom >= groundY) {
         rocket.y = groundY - rocketHeight - 20
-        if (Math.abs(rocket.vy) < 1) {
-          gameState = 'landed'
-        } else {
+
+        const rocketCenterX = rocket.x + rocketWidth / 2
+        const onPad = rocketCenterX >= pad.x && rocketCenterX <= pad.x + pad.width
+
+        if (!onPad) {
           gameState = 'crashed'
+          resultMessage = 'MISSED PAD'
+        } else if (Math.abs(rocket.vy) >= 1) {
+          gameState = 'crashed'
+          resultMessage = 'TOO FAST'
+        } else if (Math.abs(rocket.vx) >= 0.5) {
+          gameState = 'crashed'
+          resultMessage = 'SIDEWAYS SPEED'
+        } else if (Math.abs(rocket.angle) >= 0.2) {
+          gameState = 'crashed'
+          resultMessage = 'NOT UPRIGHT'
+        } else {
+          gameState = 'landed'
+          resultMessage = 'LANDED'
         }
 
         rocket.vy = 0
@@ -146,16 +174,18 @@ function App() {
       }
 
       if (gameState === 'landed') {
-        ctx.fillText('LANDED', canvas.width / 2, 80)
+        ctx.fillText(resultMessage, canvas.width / 2, 80)
       }
 
       if (gameState === 'crashed') {
-        ctx.fillText('CRASHED', canvas.width / 2, 80)
+        ctx.fillText(resultMessage, canvas.width / 2, 80)
       }
 
       if (keys.has('r')) {
         resetGame()
       }
+
+
 
       drawRocket()
       drawHUD()
