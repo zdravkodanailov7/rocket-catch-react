@@ -16,7 +16,11 @@ function App() {
       angle: 0,
       angularVelocity: 0,
     })
+
+    // game state
     let rocket = createRocket()
+    const sideBoosterWidth = 10
+    const sideBoosterHeight = 15
     const gravity = 0.02
     const keys = new Set<string>()
     const thrust = 0.05
@@ -24,11 +28,13 @@ function App() {
     const turnThrust = 0.0005
     let gameState: 'playing' | 'landed' | 'crashed' = 'playing'
     let resultMessage = ''
+    let frameCount = 0
 
     const resetGame = () => {
       resultMessage = ''
       rocket = createRocket()
       gameState = 'playing'
+      frameCount = 0
     }
 
     const keydownHandler = (e: KeyboardEvent) => {
@@ -76,6 +82,14 @@ function App() {
     const drawRocket = () => {
       const centerX = rocket.x + rocketWidth / 2
       const centerY = rocket.y + rocketHeight / 2
+      const mainFlameLength = gameState === 'playing' && keys.has('w') ? 40 : 0
+      const leftBoosterFlameLength = 
+        gameState === 'playing' && keys.has('d') ? 24 : 0
+
+      const rightBoosterFlameLength = 
+        gameState === 'playing' && keys.has('a') ? 24 : 0
+      const sideBoosterY = rocketHeight / 4
+      const sideBoosterCenterY = sideBoosterY + sideBoosterHeight / 2
 
       ctx.save()
       ctx.translate(centerX, centerY)
@@ -98,14 +112,41 @@ function App() {
       ctx.fillStyle = '#444'
       ctx.fillRect(-10, rocketHeight / 2, 20, 20)
 
+      // side boosters
+      ctx.fillRect(-rocketWidth / 2 - sideBoosterWidth, sideBoosterY, sideBoosterWidth, sideBoosterHeight)
+      ctx.fillRect(rocketWidth / 2, sideBoosterY, sideBoosterWidth, sideBoosterHeight)
+
       // flame
-      ctx.fillStyle = 'orange'
-      ctx.beginPath()
-      ctx.moveTo(-10, rocketHeight / 2 + 20)
-      ctx.lineTo(0, rocketHeight / 2 + 60)
-      ctx.lineTo(10, rocketHeight / 2 + 20)
-      ctx.closePath()
-      ctx.fill()
+      if (mainFlameLength > 0) {
+        ctx.fillStyle = 'orange'
+        ctx.beginPath()
+        ctx.moveTo(-10, rocketHeight / 2 + 20)
+        ctx.lineTo(0, rocketHeight / 2 + 20 + mainFlameLength)
+        ctx.lineTo(10, rocketHeight / 2 + 20)
+        ctx.closePath()
+        ctx.fill()
+      }
+
+      // side boosters
+      if (leftBoosterFlameLength > 0) {
+        ctx.fillStyle = 'orange'
+        ctx.beginPath()
+        ctx.moveTo(-rocketWidth / 2 - sideBoosterWidth, sideBoosterCenterY - 8)
+        ctx.lineTo(-rocketWidth / 2 - sideBoosterWidth - leftBoosterFlameLength, sideBoosterCenterY)
+        ctx.lineTo(-rocketWidth / 2 - sideBoosterWidth, sideBoosterCenterY + 8)
+        ctx.closePath()
+        ctx.fill()
+      }
+
+      if (rightBoosterFlameLength > 0) {
+        ctx.fillStyle = 'orange'
+        ctx.beginPath()
+        ctx.moveTo(rocketWidth / 2 + sideBoosterWidth, sideBoosterCenterY - 8)
+        ctx.lineTo(rocketWidth / 2 + sideBoosterWidth + rightBoosterFlameLength, sideBoosterCenterY)
+        ctx.lineTo(rocketWidth / 2 + sideBoosterWidth, sideBoosterCenterY + 8)
+        ctx.closePath()
+        ctx.fill()
+      }
 
       ctx.restore()
     }
@@ -121,6 +162,10 @@ function App() {
       ctx.fillText('Target: land on yellow pad', 16, 48)
       ctx.fillText('Safe: vy < 1 | vx < 0.5 | angle < 0.2', 16, 72)
 
+      // top middle
+      ctx.textAlign = 'center'
+      ctx.fillText(`time: ${(frameCount / 60).toFixed(1)}s`, canvas.width / 2, 24)
+
       // top right
       ctx.textAlign = 'right'
       ctx.fillText(`rocket.vy: ${rocket.vy.toFixed(2)}`, canvas.width - 16, 24)
@@ -135,6 +180,8 @@ function App() {
       drawGround()
       
       if (gameState === 'playing') {
+        frameCount += 1
+
         // vertical movement
         rocket.vy += gravity
         if (keys.has('w')) {
@@ -182,10 +229,12 @@ function App() {
       }
 
       if (gameState === 'landed') {
+        ctx.textAlign = 'center'
         ctx.fillText(resultMessage, canvas.width / 2, 80)
       }
 
       if (gameState === 'crashed') {
+        ctx.textAlign = 'center'
         ctx.fillText(resultMessage, canvas.width / 2, 80)
       }
 
