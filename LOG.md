@@ -5,6 +5,17 @@ Each entry: **Built** (what I made), **Learned** (concepts / gotchas), **Next** 
 
 ---
 
+## Roadmap
+
+1. Manual landing core: start position, HUD/messages, landing pad rules, reset.
+2. Game feel: tune gravity, thrust, turn speed, damping.
+3. Challenge: random starts, narrower pad, fuel, scoring.
+4. AI training environment: expose state, actions (`w`, `a`, `d`), rewards, reset loop.
+5. Autopilot/model training: target error, velocity correction, angle/thrust control.
+6. Catch tower: design a 2D catch zone once the landing/training loop is solid.
+
+---
+
 ## 2026-06-25 — Session 1: from blank canvas to a falling, thrustable rocket
 
 ### Built

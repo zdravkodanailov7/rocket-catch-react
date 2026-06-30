@@ -9,8 +9,8 @@ function App() {
   useEffect(() => {
 
     const createRocket = () => ({
-      x: 100,
-      y: 100,
+      x: 250,
+      y: 120,
       vx: 0,
       vy: 0,
       angle: 0,
