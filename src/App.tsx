@@ -7,19 +7,28 @@ function App() {
   const rocketHeight = 100
 
   useEffect(() => {
-    const rocket = {
+
+    const createRocket = () => ({
       x: 100,
       y: 100,
       vx: 0,
       vy: 0,
       angle: 0,
       angularVelocity: 0,
-    }
+    })
+    let rocket = createRocket()
     const gravity = 0.02
     const keys = new Set<string>()
     const thrust = 0.05
     let frameId = 0
     const turnThrust = 0.0005
+    let gameState: 'playing' | 'landed' | 'crashed' = 'playing'
+
+    const resetGame = () => {
+      rocket = createRocket()
+      gameState = 'playing'
+    }
+
     const keydownHandler = (e: KeyboardEvent) => {
       keys.add(e.key)
     }
@@ -100,23 +109,53 @@ function App() {
     }
 
     const loop = () => {
+
       drawBackground()
       drawGround()
+      
+      if (gameState === 'playing') {
+        // vertical movement
+        rocket.vy += gravity
+        if (keys.has('w')) {
+          rocket.vx += Math.sin(rocket.angle) * thrust
+          rocket.vy -= Math.cos(rocket.angle) * thrust
+        }
+        rocket.y += rocket.vy
+        rocket.x += rocket.vx
 
-      // vertical movement
-      rocket.vy += gravity
-      if (keys.has('w')) {
-        rocket.vx += Math.sin(rocket.angle) * thrust
-        rocket.vy -= Math.cos(rocket.angle) * thrust
+        // rotation movement
+        if (keys.has('a')) rocket.angularVelocity -= turnThrust
+        if (keys.has('d')) rocket.angularVelocity += turnThrust
+        rocket.angle += rocket.angularVelocity
+        rocket.angularVelocity *= 0.98
       }
-      rocket.y += rocket.vy
-      rocket.x += rocket.vx
 
-      // rotation movement
-      if (keys.has('a')) rocket.angularVelocity -= turnThrust
-      if (keys.has('d')) rocket.angularVelocity += turnThrust
-      rocket.angle += rocket.angularVelocity
-      rocket.angularVelocity *= 0.98
+      const rocketBottom = rocket.y + rocketHeight + 20
+      
+      if (gameState === 'playing' && rocketBottom >= groundY) {
+        rocket.y = groundY - rocketHeight - 20
+        if (Math.abs(rocket.vy) < 1) {
+          gameState = 'landed'
+        } else {
+          gameState = 'crashed'
+        }
+
+        rocket.vy = 0
+        rocket.vx = 0
+        rocket.angularVelocity = 0
+      }
+
+      if (gameState === 'landed') {
+        ctx.fillText('LANDED', canvas.width / 2, 80)
+      }
+
+      if (gameState === 'crashed') {
+        ctx.fillText('CRASHED', canvas.width / 2, 80)
+      }
+
+      if (keys.has('r')) {
+        resetGame()
+      }
 
       drawRocket()
       drawHUD()
