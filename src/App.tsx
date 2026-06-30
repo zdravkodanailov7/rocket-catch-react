@@ -36,6 +36,7 @@ function App() {
 
     canvas.width = window.innerWidth
     canvas.height = window.innerHeight
+    const groundY = canvas.height - 40
     
     window.addEventListener('keydown', keydownHandler)
     window.addEventListener('keyup', keyupHandler)
@@ -43,6 +44,11 @@ function App() {
     const drawBackground = () => {
       ctx.fillStyle = '#111827'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
+    }
+
+    const drawGround = () => {
+      ctx.fillStyle = '#166534'
+      ctx.fillRect(0, groundY, canvas.width, 40)
     }
     
     const drawRocket = () => {
@@ -95,6 +101,7 @@ function App() {
 
     const loop = () => {
       drawBackground()
+      drawGround()
 
       // vertical movement
       rocket.vy += gravity
