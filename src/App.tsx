@@ -118,6 +118,8 @@ function App() {
       // top left
       ctx.textAlign = 'left'
       ctx.fillText('W thrust | A/D rotate | R reset', 16, 24)
+      ctx.fillText('Target: land on yellow pad', 16, 48)
+      ctx.fillText('Safe: vy < 1 | vx < 0.5 | angle < 0.2', 16, 72)
 
       // top right
       ctx.textAlign = 'right'
