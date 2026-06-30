@@ -115,6 +115,12 @@ function App() {
       ctx.font = '16px monospace'
       ctx.textAlign = 'right'
 
+      // top left
+      ctx.textAlign = 'left'
+      ctx.fillText('W thrust | A/D rotate | R reset', 16, 24)
+
+      // top right
+      ctx.textAlign = 'right'
       ctx.fillText(`rocket.vy: ${rocket.vy.toFixed(2)}`, canvas.width - 16, 24)
       ctx.fillText(`y: ${rocket.y.toFixed(2)}`, canvas.width - 16, 48)
       ctx.fillText(`rocket.vx: ${rocket.vx.toFixed(2)}`, canvas.width - 16, 72)
