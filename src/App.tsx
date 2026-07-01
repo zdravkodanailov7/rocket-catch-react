@@ -11,11 +11,12 @@ const level1 = {
   padWidth: 150,
   padHeight: 8,
   groundHeight: 40,
-  gravity: 0.02,
-  thrust: 0.05,
-  turnThrust: 0.0005,
-  maxSafeVy: 1,
-  maxSafeVx: 0.5,
+  gravity: 0.08,
+  thrust: 0.2,
+  turnThrust: 0.002,
+  angularDamping: 0.9604,
+  maxSafeVy: 2,
+  maxSafeVx: 1,
   maxSafeAngle: 0.2,
 }
 
@@ -126,6 +127,7 @@ function Game() {
     const gravity = level.gravity
     const thrust = level.thrust
     const turnThrust = level.turnThrust
+    const angularDamping = level.angularDamping
 
     const keys = new Set<string>()
     let frameId = 0
@@ -308,7 +310,7 @@ function Game() {
       ctx.textAlign = 'left'
       ctx.fillText('W thrust | A/D rotate | R reset', 16, hudTop)
       ctx.fillText('Target: land on yellow pad', 16, hudTop + 24)
-      ctx.fillText('Safe: vy < 1 | vx < 0.5 | angle < 0.2', 16, hudTop + 48)
+      ctx.fillText(`Safe: vy < ${level.maxSafeVy} | vx < ${level.maxSafeVx} | angle < ${level.maxSafeAngle}`, 16, hudTop + 48)
       drawKey('W', 56, hudTop + 72, keys.has('w'))
       drawKey('A', 16, hudTop + 112, keys.has('a'))
       drawKey('D', 96, hudTop + 112, keys.has('d'))
@@ -328,11 +330,7 @@ function Game() {
       ctx.fillText(`ghost: ${ghostMode} (g)`, canvas.width - 16, debugTop + 116)
     }
 
-    const loop = () => {
-
-      drawBackground()
-      drawGround()
-      
+    const stepSim = () => {
       if (gameState === 'playing') {
         frameCount += 1
         keyFrames.push({
@@ -363,7 +361,7 @@ function Game() {
         if (keys.has('d')) rocket.angularVelocity += turnThrust
         rocket.angle += rocket.angularVelocity
         rocket.angle = normaliseAngle(rocket.angle)
-        rocket.angularVelocity *= 0.98
+        rocket.angularVelocity *= angularDamping
       }
 
       const rocketBottom = rocket.y + rocketHeight + 20
@@ -408,6 +406,28 @@ function Game() {
         rocket.vx = 0
         rocket.angularVelocity = 0
       }
+    }
+
+    // fixed timestep: the sim always steps at 60Hz, whatever the display refresh rate
+    const stepMs = 1000 / 60
+    let lastTime = performance.now()
+    let accumulator = 0
+
+    const loop = () => {
+      const now = performance.now()
+      accumulator += now - lastTime
+      lastTime = now
+
+      // cap catch-up so a backgrounded tab doesn't fast-forward the game
+      if (accumulator > 250) accumulator = 250
+
+      while (accumulator >= stepMs) {
+        stepSim()
+        accumulator -= stepMs
+      }
+
+      drawBackground()
+      drawGround()
 
       if (gameState === 'landed') {
         ctx.textAlign = 'center'

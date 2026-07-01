@@ -26,6 +26,14 @@ Each entry: **Built** (what I made), **Learned** (concepts / gotchas), **Next** 
 - Autopilot/model training: target error, velocity correction, angle/thrust control.
 - Catch tower: design a 2D catch zone once the landing/training loop is solid.
 
+### Code review todos (2026-07-01)
+- [x] Frame-rate independent physics: step the sim at a fixed 60Hz with an accumulator so gravity and leaderboard times match across 60/120/144Hz displays. (implemented 2026-07-01)
+- [ ] Ghost flames: `drawRocket` reads the live `keys` set, so the ghost fires its engine when the player presses W — replay the ghost's own `keyFrames` instead.
+- [ ] Replay payload size: `keyFrames`/`replayFrames` store an entry every frame (~7,200 objects per minute; Convex docs cap at 1MB) — record key *changes* only, and consider re-simulating replays from inputs instead of storing positions.
+- [ ] Leaderboard dedupe: it currently shows top 10 *attempts*, not players, so one player can fill every slot. Also the query does `take(10)` but the UI does `slice(0, 5)`.
+- [ ] Anti-cheat: `attempts.save` trusts whatever the client sends — validate claimed times server-side by re-simulating from `keyFrames` (needs the deterministic sim above).
+- [ ] Small fixes: pad centering uses a hardcoded `- 75` instead of `padWidth / 2`; magic `+ 20` nozzle offset in the collision check; no window-resize handling.
+
 ---
 
 ## 2026-06-25 — Session 1: from blank canvas to a falling, thrustable rocket
