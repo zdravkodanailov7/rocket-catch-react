@@ -28,6 +28,16 @@ const formatTime = (seconds: number) => {
   return `${seconds.toFixed(3)}s`
 }
 
+const formatDuration = (seconds: number) => {
+  const totalSeconds = Math.floor(seconds)
+  const minutes = Math.floor(totalSeconds / 60)
+  const remainingSeconds = totalSeconds % 60
+
+  if (minutes === 0) return `${remainingSeconds}s`
+
+  return `${minutes}m ${remainingSeconds}s`
+}
+
 const formatPercent = (value: number) => {
   return `${Math.round(value * 100)}%`
 }
@@ -541,7 +551,7 @@ function ProfileSummary({
         </div>
         <div>
           <span>Total time played</span>
-          <strong>{formatTime(stats.totalTimeSeconds)}</strong>
+          <strong>{formatDuration(stats.totalTimeSeconds)}</strong>
         </div>
         <div>
           <span>Crashes</span>
