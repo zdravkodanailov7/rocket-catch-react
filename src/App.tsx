@@ -152,9 +152,17 @@ function App() {
     }
 
     const drawHUD = () => {
+      const drawKey = (label: string, x: number, y: number, active: boolean) => {
+        ctx.fillStyle = active ? '#eab308' : '#374151'
+        ctx.fillRect(x, y, 36, 36)
+
+        ctx.fillStyle = 'white'
+        ctx.textAlign = 'center'
+        ctx.fillText(label, x + 18, y + 24)
+      }
+
       ctx.fillStyle = 'white'
       ctx.font = '16px monospace'
-      ctx.textAlign = 'right'
 
       // top left
       ctx.textAlign = 'left'
@@ -172,6 +180,10 @@ function App() {
       ctx.fillText(`y: ${rocket.y.toFixed(2)}`, canvas.width - 16, 48)
       ctx.fillText(`rocket.vx: ${rocket.vx.toFixed(2)}`, canvas.width - 16, 72)
       ctx.fillText(`rocket.angle: ${rocket.angle.toFixed(2)}`, canvas.width - 16, 96)
+
+      drawKey('W', 56, 96, keys.has('w'))
+      drawKey('A', 16, 136, keys.has('a'))
+      drawKey('D', 96, 136, keys.has('d'))
     }
 
     const loop = () => {
