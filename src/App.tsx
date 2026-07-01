@@ -217,15 +217,20 @@ function Game() {
       ctx.fillRect(pad.x, pad.y, pad.width, pad.height)
     }
     
-    const drawRocket = (rocketToDraw = rocket, opacity = 1) => {
+    const drawRocket = (
+      rocketToDraw = rocket,
+      opacity = 1,
+      heldKeys = {
+        w: gameState === 'playing' && keys.has('w'),
+        a: gameState === 'playing' && keys.has('a'),
+        d: gameState === 'playing' && keys.has('d'),
+      }
+    ) => {
       const centerX = rocketToDraw.x + rocketWidth / 2
       const centerY = rocketToDraw.y + rocketHeight / 2
-      const mainFlameLength = gameState === 'playing' && keys.has('w') ? 40 : 0
-      const leftBoosterFlameLength = 
-        gameState === 'playing' && keys.has('d') ? 24 : 0
-
-      const rightBoosterFlameLength = 
-        gameState === 'playing' && keys.has('a') ? 24 : 0
+      const mainFlameLength = heldKeys.w ? 40 : 0
+      const leftBoosterFlameLength = heldKeys.d ? 24 : 0
+      const rightBoosterFlameLength = heldKeys.a ? 24 : 0
       const sideBoosterY = rocketHeight / 4
       const sideBoosterCenterY = sideBoosterY + sideBoosterHeight / 2
 
@@ -446,6 +451,7 @@ function Game() {
 
       const ghostAttempt = getGhostAttempt()
       const ghostFrame = ghostAttempt?.replayFrames[frameCount - 1]
+      const ghostKeys = ghostAttempt?.keyFrames[frameCount - 1]
 
       if (ghostFrame) {
         drawRocket(
@@ -457,7 +463,8 @@ function Game() {
             angle: ghostFrame.angle,
             angularVelocity: 0
           },
-          0.35
+          0.35,
+          ghostKeys ?? { w: false, a: false, d: false }
         )
       }
       drawRocket()
