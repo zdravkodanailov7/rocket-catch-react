@@ -7,19 +7,24 @@ Each entry: **Built** (what I made), **Learned** (concepts / gotchas), **Next** 
 
 ## Roadmap
 
-1. Manual landing core: start position, HUD/messages, landing pad rules, reset.
-2. Input feedback: draw on-screen `W`, `A`, `D`, `R` keys and highlight held keys.
-3. Attempt recording: record key holds, frame count, outcome, landing time, and success/fail reason.
-4. Levels: define Level 1, then add multiple starts/pads/difficulty settings.
-5. Game feel: tune gravity, thrust, turn speed, damping per level.
-6. Progress and stats: success rate, best landing time, attempts per level.
-7. Ghost replay: replay a previous successful attempt against the current run.
-8. Backend: use Convex to store attempts, level results, ghosts, and leaderboard entries.
-9. Auth: add Clerk so attempts and ghosts belong to users.
-10. Leaderboards: fastest/smoothest landings per level.
-11. AI training environment: expose state, actions (`w`, `a`, `d`), rewards, reset loop, and recorded human attempts.
-12. Autopilot/model training: target error, velocity correction, angle/thrust control.
-13. Catch tower: design a 2D catch zone once the landing/training loop is solid.
+### Done
+- Manual landing core: start position, HUD/messages, landing pad rules, reset.
+- Input feedback: draw on-screen `W`, `A`, `D` keys and highlight held keys.
+- Level 1 config: define start position, pad position, physics values, and landing thresholds in one place.
+
+### Next
+- Attempt recording: record frame count, outcome, landing time, fail reason, and key holds.
+- Progress stats: success rate, best landing time, attempts per level.
+- Ghost replay: replay a previous successful attempt against the current run.
+
+### Later
+- Levels: add multiple starts, pads, and difficulty settings.
+- Backend: use Convex to store attempts, level results, ghosts, and leaderboard entries.
+- Auth: add Clerk so attempts and ghosts belong to users.
+- Leaderboards: fastest/smoothest landings per level.
+- AI training environment: expose state, actions (`w`, `a`, `d`), rewards, reset loop, and recorded human attempts.
+- Autopilot/model training: target error, velocity correction, angle/thrust control.
+- Catch tower: design a 2D catch zone once the landing/training loop is solid.
 
 ---
 

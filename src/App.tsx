@@ -6,11 +6,51 @@ function App() {
   const rocketWidth = 50
   const rocketHeight = 100
 
+  type KeyFrame = {
+    frame: number
+    w: boolean
+    a: boolean
+    d: boolean
+  }
+
+  type ReplayFrame = {
+    frame: number,
+    x: number,
+    y: number,
+    angle: number
+  }
+
+  type Attempt = {
+    frames: number
+    timeSeconds: number
+    outcome: 'landed' | 'crashed'
+    reason: string
+    keyFrames: KeyFrame[]
+    levelId: string
+    replayFrames: ReplayFrame[]
+  }
+
+  const level1 = {
+    id: 'level-1',
+    startX: 250,
+    startY: 120,
+    padWidth: 150,
+    padHeight: 8,
+    groundHeight: 40,
+    gravity: 0.02,
+    thrust: 0.05,
+    turnThrust: 0.0005,
+    maxSafeVy: 1,
+    maxSafeVx: 0.5,
+    maxSafeAngle: 0.2,
+  }
+
   useEffect(() => {
+    const level = level1
 
     const createRocket = () => ({
-      x: 250,
-      y: 120,
+      x: level.startX,
+      y: level.startY,
       vx: 0,
       vy: 0,
       angle: 0,
@@ -21,20 +61,34 @@ function App() {
     let rocket = createRocket()
     const sideBoosterWidth = 10
     const sideBoosterHeight = 15
-    const gravity = 0.02
+
+    const gravity = level.gravity
+    const thrust = level.thrust
+    const turnThrust = level.turnThrust
+
     const keys = new Set<string>()
-    const thrust = 0.05
     let frameId = 0
-    const turnThrust = 0.0005
     let gameState: 'playing' | 'landed' | 'crashed' = 'playing'
     let resultMessage = ''
     let frameCount = 0
+    let keyFrames: KeyFrame[] = []
+    let replayFrames: ReplayFrame[] = []
+
+    const attempts: Attempt[] = []
+
+    const getBestLanding = () => {
+      return attempts
+        .filter((attempt) => attempt.levelId === level.id && attempt.outcome === 'landed')
+        .sort((a, b) => a.frames - b.frames)[0]
+    }
 
     const resetGame = () => {
       resultMessage = ''
       rocket = createRocket()
       gameState = 'playing'
       frameCount = 0
+      keyFrames = []
+      replayFrames = []
     }
 
     const keydownHandler = (e: KeyboardEvent) => {
@@ -53,15 +107,14 @@ function App() {
 
     canvas.width = window.innerWidth
     canvas.height = window.innerHeight
-    const groundY = canvas.height - 40
+    const groundY = canvas.height - level.groundHeight
     
     const pad = {
       x: canvas.width / 2 - 75,
       y: groundY,
-      width: 150,
-      height: 8,
+      width: level.padWidth,
+      height: level.padHeight,
     }
-
       
     window.addEventListener('keydown', keydownHandler)
     window.addEventListener('keyup', keyupHandler)
@@ -79,9 +132,9 @@ function App() {
       ctx.fillRect(pad.x, pad.y, pad.width, pad.height)
     }
     
-    const drawRocket = () => {
-      const centerX = rocket.x + rocketWidth / 2
-      const centerY = rocket.y + rocketHeight / 2
+    const drawRocket = (rocketToDraw = rocket, opacity = 1) => {
+      const centerX = rocketToDraw.x + rocketWidth / 2
+      const centerY = rocketToDraw.y + rocketHeight / 2
       const mainFlameLength = gameState === 'playing' && keys.has('w') ? 40 : 0
       const leftBoosterFlameLength = 
         gameState === 'playing' && keys.has('d') ? 24 : 0
@@ -92,8 +145,9 @@ function App() {
       const sideBoosterCenterY = sideBoosterY + sideBoosterHeight / 2
 
       ctx.save()
+      ctx.globalAlpha = opacity
       ctx.translate(centerX, centerY)
-      ctx.rotate(rocket.angle)
+      ctx.rotate(rocketToDraw.angle)
 
       // body
       ctx.fillStyle = 'white'
@@ -169,6 +223,11 @@ function App() {
       ctx.fillText('W thrust | A/D rotate | R reset', 16, 24)
       ctx.fillText('Target: land on yellow pad', 16, 48)
       ctx.fillText('Safe: vy < 1 | vx < 0.5 | angle < 0.2', 16, 72)
+      drawKey('W', 56, 96, keys.has('w'))
+      drawKey('A', 16, 136, keys.has('a'))
+      drawKey('D', 96, 136, keys.has('d'))
+      ctx.textAlign = 'left'
+      ctx.fillText(`Attempt ${attempts.length + 1}`, 16, 204)
 
       // top middle
       ctx.textAlign = 'center'
@@ -180,10 +239,6 @@ function App() {
       ctx.fillText(`y: ${rocket.y.toFixed(2)}`, canvas.width - 16, 48)
       ctx.fillText(`rocket.vx: ${rocket.vx.toFixed(2)}`, canvas.width - 16, 72)
       ctx.fillText(`rocket.angle: ${rocket.angle.toFixed(2)}`, canvas.width - 16, 96)
-
-      drawKey('W', 56, 96, keys.has('w'))
-      drawKey('A', 16, 136, keys.has('a'))
-      drawKey('D', 96, 136, keys.has('d'))
     }
 
     const loop = () => {
@@ -193,6 +248,12 @@ function App() {
       
       if (gameState === 'playing') {
         frameCount += 1
+        keyFrames.push({
+          frame: frameCount,
+          w: keys.has('w'),
+          a: keys.has('a'),
+          d: keys.has('d'),
+        })
 
         // vertical movement
         rocket.vy += gravity
@@ -202,6 +263,13 @@ function App() {
         }
         rocket.y += rocket.vy
         rocket.x += rocket.vx
+
+        replayFrames.push({
+          frame: frameCount,
+          x: rocket.x,
+          y: rocket.y,
+          angle: rocket.angle
+        })
 
         // rotation movement
         if (keys.has('a')) rocket.angularVelocity -= turnThrust
@@ -221,19 +289,29 @@ function App() {
         if (!onPad) {
           gameState = 'crashed'
           resultMessage = 'MISSED PAD'
-        } else if (Math.abs(rocket.vy) >= 1) {
+        } else if (Math.abs(rocket.vy) >= level.maxSafeVy) {
           gameState = 'crashed'
           resultMessage = 'TOO FAST'
-        } else if (Math.abs(rocket.vx) >= 0.5) {
+        } else if (Math.abs(rocket.vx) >= level.maxSafeVx) {
           gameState = 'crashed'
           resultMessage = 'SIDEWAYS SPEED'
-        } else if (Math.abs(rocket.angle) >= 0.2) {
+        } else if (Math.abs(rocket.angle) >= level.maxSafeAngle) {
           gameState = 'crashed'
           resultMessage = 'NOT UPRIGHT'
         } else {
           gameState = 'landed'
           resultMessage = 'LANDED'
         }
+
+        attempts.push({
+          frames: frameCount,
+          timeSeconds: frameCount / 60,
+          outcome: gameState,
+          reason: resultMessage,
+          keyFrames: [...keyFrames],
+          levelId: level.id,
+          replayFrames: [...replayFrames]
+        })
 
         rocket.vy = 0
         rocket.vx = 0
@@ -255,7 +333,22 @@ function App() {
       }
 
 
+      const bestLanding = getBestLanding()
+      const ghostFrame = bestLanding?.replayFrames[frameCount - 1]
 
+      if (ghostFrame) {
+        drawRocket(
+          {
+            x: ghostFrame.x,
+            y: ghostFrame.y,
+            vx: 0,
+            vy: 0,
+            angle: ghostFrame.angle,
+            angularVelocity: 0
+          },
+          0.35
+        )
+      }
       drawRocket()
       drawHUD()
       frameId = requestAnimationFrame(loop)
