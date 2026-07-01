@@ -1,7 +1,22 @@
 import { useEffect, useRef } from "react"
-import { useMutation, Authenticated, Unauthenticated, AuthLoading, AuthRefreshing } from "convex/react"
+import { useMutation, useQuery, Authenticated, Unauthenticated, AuthLoading, AuthRefreshing } from "convex/react"
 import { api } from '../convex/_generated/api'
 import { SignInButton, UserButton } from '@clerk/react'
+
+const level1 = {
+  id: 'level-1',
+  startX: 250,
+  startY: 120,
+  padWidth: 150,
+  padHeight: 8,
+  groundHeight: 40,
+  gravity: 0.02,
+  thrust: 0.05,
+  turnThrust: 0.0005,
+  maxSafeVy: 1,
+  maxSafeVx: 0.5,
+  maxSafeAngle: 0.2,
+}
 
 function Game() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -33,24 +48,24 @@ function Game() {
     replayFrames: ReplayFrame[]
   }
 
-  const level1 = {
-    id: 'level-1',
-    startX: 250,
-    startY: 120,
-    padWidth: 150,
-    padHeight: 8,
-    groundHeight: 40,
-    gravity: 0.02,
-    thrust: 0.05,
-    turnThrust: 0.0005,
-    maxSafeVy: 1,
-    maxSafeVx: 0.5,
-    maxSafeAngle: 0.2,
-  }
+  type GhostMode = 'off' | 'mine' | 'best'
+
+  const leaderboard = useQuery(api.attempts.leaderboard, { levelId: level1.id })
+  const myBestAttempt = useQuery(api.attempts.myBestAttempt, { levelId: level1.id })
+  const leaderboardRef = useRef<typeof leaderboard>(undefined)
+  const myBestAttemptRef = useRef<typeof myBestAttempt>(undefined)
+
+  useEffect(() => {
+    leaderboardRef.current = leaderboard
+  }, [leaderboard])
+
+  useEffect(() => {
+    myBestAttemptRef.current = myBestAttempt
+  }, [myBestAttempt])
 
   useEffect(() => {
     const level = level1
-    let showGhost = true
+    let ghostMode: GhostMode = 'mine'
 
     const createRocket = () => ({
       x: level.startX,
@@ -84,10 +99,24 @@ function Game() {
       return Math.atan2(Math.sin(angle), Math.cos(angle))
     }
     
-    const getBestLanding = () => {
+    const getBestLocalLanding = () => {
       return attempts
         .filter((attempt) => attempt.levelId === level.id && attempt.outcome === 'landed')
         .sort((a, b) => a.frames - b.frames)[0]
+    }
+
+    const getGhostAttempt = () => {
+      if (ghostMode === 'off') return undefined
+      if (ghostMode === 'best') return leaderboardRef.current?.[0]
+
+      return myBestAttemptRef.current ?? getBestLocalLanding()
+    }
+
+    const getNextGhostMode = () => {
+      if (ghostMode === 'mine') return 'best'
+      if (ghostMode === 'best') return 'off'
+
+      return 'mine'
     }
 
     const resetGame = () => {
@@ -101,7 +130,7 @@ function Game() {
 
     const keydownHandler = (e: KeyboardEvent) => {
       if (e.key === 'g') {
-        showGhost = !showGhost
+        ghostMode = getNextGhostMode()
         return
       }
       keys.add(e.key)
@@ -254,7 +283,7 @@ function Game() {
       ctx.fillText(`y: ${rocket.y.toFixed(2)}`, canvas.width - 16, debugTop + 24)
       ctx.fillText(`rocket.vx: ${rocket.vx.toFixed(2)}`, canvas.width - 16, debugTop + 48)
       ctx.fillText(`rocket.angle: ${rocket.angle.toFixed(2)}`, canvas.width - 16, debugTop + 72)
-      ctx.fillText(`ghost: ${showGhost ? 'on' : 'off'} (g)`, canvas.width - 16, debugTop + 116)
+      ctx.fillText(`ghost: ${ghostMode} (g)`, canvas.width - 16, debugTop + 116)
     }
 
     const loop = () => {
@@ -353,10 +382,10 @@ function Game() {
       }
 
 
-      const bestLanding = getBestLanding()
-      const ghostFrame = bestLanding?.replayFrames[frameCount - 1]
+      const ghostAttempt = getGhostAttempt()
+      const ghostFrame = ghostAttempt?.replayFrames[frameCount - 1]
 
-      if (showGhost && ghostFrame) {
+      if (ghostFrame) {
         drawRocket(
           {
             x: ghostFrame.x,
@@ -381,10 +410,44 @@ function Game() {
       window.removeEventListener('keydown', keydownHandler)
       cancelAnimationFrame(frameId)
     }
-  }, [])
+  }, [saveAttempt])
 
   return (
-    <canvas ref={canvasRef} />
+    <>
+      <canvas ref={canvasRef} />
+      <section className="leaderboard-panel" aria-label="Leaderboard">
+        <h2>Leaderboard</h2>
+        {!leaderboard && <p className="leaderboard-empty">Loading...</p>}
+        {leaderboard?.length === 0 && (
+          <p className="leaderboard-empty">No landings yet</p>
+        )}
+        {leaderboard && leaderboard.length > 0 && (
+          <ol>
+            {leaderboard.slice(0, 5).map((entry) => (
+              <li key={entry._id}>
+                {entry.user?.imageUrl ? (
+                  <img
+                    src={entry.user.imageUrl}
+                    alt=""
+                    className="leaderboard-avatar"
+                  />
+                ) : (
+                  <span className="leaderboard-avatar leaderboard-avatar-fallback">
+                    {(entry.user?.displayName ?? 'P').slice(0, 1)}
+                  </span>
+                )}
+                <span className="leaderboard-name">
+                  {entry.user?.displayName ?? 'Player'}
+                </span>
+                <span className="leaderboard-time">
+                  {entry.timeSeconds.toFixed(1)}s
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    </>
   )
 }
 

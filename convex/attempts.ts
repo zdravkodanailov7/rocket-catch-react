@@ -1,4 +1,4 @@
-import { mutation } from './_generated/server'
+import { mutation, query } from './_generated/server'
 import { v } from 'convex/values'
 import { keyFrame, replayFrame } from './validators'
 
@@ -56,5 +56,56 @@ export const save = mutation({
       userId,
       createdAt: now,
     })
+  },
+})
+
+export const leaderboard = query({
+  args: {
+    levelId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const attempts = await ctx.db
+      .query('attempts')
+      .withIndex('by_level_outcome_frames', (q) =>
+        q.eq('levelId', args.levelId).eq('outcome', 'landed')
+      )
+      .take(10)
+
+    return await Promise.all(
+      attempts.map(async (attempt) => {
+        const user = await ctx.db
+          .query('users')
+          .withIndex('by_userId', (q) => q.eq('userId', attempt.userId))
+          .unique()
+
+        return {
+          ...attempt,
+          user,
+        }
+      })
+    )
+  },
+})
+
+export const myBestAttempt = query({
+  args: {
+    levelId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+
+    if (!identity) {
+      return null
+    }
+
+    return await ctx.db
+      .query('attempts')
+      .withIndex('by_user_level_outcome_frames', (q) =>
+        q
+          .eq('userId', identity.tokenIdentifier)
+          .eq('levelId', args.levelId)
+          .eq('outcome', 'landed')
+      )
+      .first()
   },
 })
