@@ -24,4 +24,5 @@ export default defineSchema({
   })
     .index('by_level_outcome_frames', ['levelId', 'outcome', 'frames'])
     .index('by_user_level_outcome_frames', ['userId', 'levelId', 'outcome', 'frames'])
+    .index('by_user_createdAt', ['userId', 'createdAt'])
 })

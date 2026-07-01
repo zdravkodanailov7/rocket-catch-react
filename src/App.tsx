@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useMutation, useQuery, Authenticated, Unauthenticated, AuthLoading, AuthRefreshing } from "convex/react"
 import { api } from '../convex/_generated/api'
+import type { Id } from '../convex/_generated/dataModel'
 import { SignInButton, UserButton } from '@clerk/react'
 
 const level1 = {
@@ -16,6 +17,37 @@ const level1 = {
   maxSafeVy: 1,
   maxSafeVx: 0.5,
   maxSafeAngle: 0.2,
+}
+
+const navigateTo = (path: string) => {
+  window.history.pushState({}, '', path)
+  window.dispatchEvent(new PopStateEvent('popstate'))
+}
+
+const formatTime = (seconds: number) => {
+  return `${seconds.toFixed(3)}s`
+}
+
+const formatPercent = (value: number) => {
+  return `${Math.round(value * 100)}%`
+}
+
+const usePathname = () => {
+  const [pathname, setPathname] = useState(window.location.pathname)
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setPathname(window.location.pathname)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [])
+
+  return pathname
 }
 
 function Game() {
@@ -275,7 +307,7 @@ function Game() {
 
       // top middle
       ctx.textAlign = 'center'
-      ctx.fillText(`time: ${(frameCount / 60).toFixed(1)}s`, canvas.width / 2, 24)
+      ctx.fillText(`time: ${formatTime(frameCount / 60)}`, canvas.width / 2, 24)
 
       // top right
       ctx.textAlign = 'right'
@@ -425,22 +457,32 @@ function Game() {
           <ol>
             {leaderboard.slice(0, 5).map((entry) => (
               <li key={entry._id}>
-                {entry.user?.imageUrl ? (
-                  <img
-                    src={entry.user.imageUrl}
-                    alt=""
-                    className="leaderboard-avatar"
-                  />
-                ) : (
-                  <span className="leaderboard-avatar leaderboard-avatar-fallback">
-                    {(entry.user?.displayName ?? 'P').slice(0, 1)}
+                <a
+                  href={entry.user ? `/profile/${entry.user._id}` : '#'}
+                  className="leaderboard-user-link"
+                  onClick={(event) => {
+                    if (!entry.user) return
+                    event.preventDefault()
+                    navigateTo(`/profile/${entry.user._id}`)
+                  }}
+                >
+                  {entry.user?.imageUrl ? (
+                    <img
+                      src={entry.user.imageUrl}
+                      alt=""
+                      className="leaderboard-avatar"
+                    />
+                  ) : (
+                    <span className="leaderboard-avatar leaderboard-avatar-fallback">
+                      {(entry.user?.displayName ?? 'P').slice(0, 1)}
+                    </span>
+                  )}
+                  <span className="leaderboard-name">
+                    {entry.user?.displayName ?? 'Player'}
                   </span>
-                )}
-                <span className="leaderboard-name">
-                  {entry.user?.displayName ?? 'Player'}
-                </span>
+                </a>
                 <span className="leaderboard-time">
-                  {entry.timeSeconds.toFixed(1)}s
+                  {formatTime(entry.timeSeconds)}
                 </span>
               </li>
             ))}
@@ -448,6 +490,237 @@ function Game() {
         )}
       </section>
     </>
+  )
+}
+
+function ProfileSummary({
+  profile,
+}: {
+  profile:
+    | NonNullable<ReturnType<typeof useQuery<typeof api.users.current>>>
+    | NonNullable<ReturnType<typeof useQuery<typeof api.users.profile>>>
+}) {
+  const { user, stats } = profile
+
+  return (
+    <main className="profile-page">
+      <section className="profile-header">
+        {user.imageUrl ? (
+          <img src={user.imageUrl} alt="" className="profile-avatar" />
+        ) : (
+          <span className="profile-avatar profile-avatar-fallback">
+            {user.displayName.slice(0, 1)}
+          </span>
+        )}
+        <div>
+          <h1>{user.displayName}</h1>
+          <p>Level 1 pilot</p>
+        </div>
+      </section>
+
+      <UserSearch />
+
+      <section className="stats-grid" aria-label="Stats">
+        <div>
+          <span>Total attempts</span>
+          <strong>{stats.totalAttempts}</strong>
+        </div>
+        <div>
+          <span>Landings</span>
+          <strong>{stats.landedCount}</strong>
+        </div>
+        <div>
+          <span>Success rate</span>
+          <strong>{formatPercent(stats.successRate)}</strong>
+        </div>
+        <div>
+          <span>Best time</span>
+          <strong>
+            {stats.bestLanding ? formatTime(stats.bestLanding.timeSeconds) : '--'}
+          </strong>
+        </div>
+        <div>
+          <span>Total time played</span>
+          <strong>{formatTime(stats.totalTimeSeconds)}</strong>
+        </div>
+        <div>
+          <span>Crashes</span>
+          <strong>{stats.crashedCount}</strong>
+        </div>
+      </section>
+
+      <FailureBreakdown
+        crashedCount={stats.crashedCount}
+        failureReasons={stats.failureReasons}
+      />
+
+      <section className="profile-section">
+        <h2>Latest attempts</h2>
+        {stats.latestAttempts.length === 0 ? (
+          <p className="muted-text">No attempts yet</p>
+        ) : (
+          <ol className="attempt-list">
+            {stats.latestAttempts.map((attempt) => (
+              <li key={attempt._id}>
+                <span>{attempt.outcome === 'landed' ? 'LANDED' : attempt.reason}</span>
+                <span>{formatTime(attempt.timeSeconds)}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    </main>
+  )
+}
+
+function FailureBreakdown({
+  crashedCount,
+  failureReasons,
+}: {
+  crashedCount: number
+  failureReasons: Array<{
+    reason: string
+    count: number
+    percent: number
+  }>
+}) {
+  const topFailure = failureReasons.find((failure) => failure.count > 0)
+
+  return (
+    <section className="profile-section failure-breakdown">
+      <div className="profile-section-header">
+        <div>
+          <h2>Crash breakdown</h2>
+          <p>Failure reasons</p>
+        </div>
+        {topFailure && <strong>{topFailure.reason}</strong>}
+      </div>
+
+      {crashedCount === 0 ? (
+        <p className="muted-text">No crashes yet</p>
+      ) : (
+        <div className="failure-bars">
+          {failureReasons.map((failure) => (
+            <div className="failure-row" key={failure.reason}>
+              <div className="failure-label">
+                <span>{failure.reason}</span>
+                <span>{failure.count}</span>
+              </div>
+              <div className="failure-track">
+                <div
+                  className="failure-fill"
+                  style={{ width: `${failure.percent * 100}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function ProfilePage({ profileId }: { profileId: Id<'users'> }) {
+  const profile = useQuery(api.users.profile, { profileId })
+
+  if (profile === undefined) {
+    return <main className="profile-page">Loading...</main>
+  }
+
+  if (profile === null) {
+    return <main className="profile-page">Profile not found</main>
+  }
+
+  return <ProfileSummary profile={profile} />
+}
+
+function MyProfilePage() {
+  const profile = useQuery(api.users.current)
+
+  if (profile === undefined) {
+    return <main className="profile-page">Loading...</main>
+  }
+
+  if (profile === null) {
+    return <main className="profile-page">Play one run to create your profile.</main>
+  }
+
+  return <ProfileSummary profile={profile} />
+}
+
+function UserSearch() {
+  const [search, setSearch] = useState('')
+  const shouldSearch = search.trim().length > 0
+  const users = useQuery(api.users.search, shouldSearch ? { search } : 'skip')
+
+  return (
+    <section className="user-search" aria-label="Find players">
+      <input
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder="Find player"
+      />
+      {shouldSearch && (
+        <div className="user-search-results">
+          {users?.map((user) => (
+            <a
+              key={user._id}
+              href={`/profile/${user._id}`}
+              onClick={(event) => {
+                event.preventDefault()
+                navigateTo(`/profile/${user._id}`)
+              }}
+            >
+              {user.imageUrl ? (
+                <img src={user.imageUrl} alt="" />
+              ) : (
+                <span>{user.displayName.slice(0, 1)}</span>
+              )}
+              {user.displayName}
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function AuthenticatedApp() {
+  const pathname = usePathname()
+  const profileMatch = pathname.match(/^\/profile\/([^/]+)$/)
+
+  return (
+    <div className="app-shell">
+      <header className="app-nav">
+        <nav>
+          <a
+            href="/"
+            onClick={(event) => {
+              event.preventDefault()
+              navigateTo('/')
+            }}
+          >
+            Game
+          </a>
+          <a
+            href="/me"
+            onClick={(event) => {
+              event.preventDefault()
+              navigateTo('/me')
+            }}
+          >
+            Profile
+          </a>
+        </nav>
+        <UserButton />
+      </header>
+
+      {pathname === '/me' && <MyProfilePage />}
+      {profileMatch && (
+        <ProfilePage profileId={profileMatch[1] as Id<'users'>} />
+      )}
+      {pathname !== '/me' && !profileMatch && <Game />}
+    </div>
   )
 }
 
@@ -462,12 +735,7 @@ function App() {
       </Unauthenticated>
 
       <Authenticated>
-        <div className="game-shell">
-          <div className="user-menu">
-            <UserButton />
-          </div>
-          <Game />
-        </div>
+        <AuthenticatedApp />
       </Authenticated>
 
       <AuthLoading>Loading...</AuthLoading>

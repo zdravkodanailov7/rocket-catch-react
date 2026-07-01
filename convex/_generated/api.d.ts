@@ -9,6 +9,7 @@
  */
 
 import type * as attempts from "../attempts.js";
+import type * as users from "../users.js";
 import type * as validators from "../validators.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   attempts: typeof attempts;
+  users: typeof users;
   validators: typeof validators;
 }>;
 
