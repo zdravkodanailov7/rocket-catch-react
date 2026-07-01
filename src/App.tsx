@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef } from "react"
+import { createRocket, simulateReplay, stepRocket } from './sim'
+import type { KeyChange, ReplayFrame } from './sim'
 import { useMutation, useQuery, Authenticated, Unauthenticated, AuthLoading, AuthRefreshing } from "convex/react"
 import { api } from '../convex/_generated/api'
 import type { Id } from '../convex/_generated/dataModel'
@@ -67,28 +69,13 @@ function Game() {
   const rocketWidth = 50
   const rocketHeight = 100
 
-  type KeyFrame = {
-    frame: number
-    w: boolean
-    a: boolean
-    d: boolean
-  }
-
-  type ReplayFrame = {
-    frame: number,
-    x: number,
-    y: number,
-    angle: number
-  }
-
   type Attempt = {
     frames: number
     timeSeconds: number
     outcome: 'landed' | 'crashed'
     reason: string
-    keyFrames: KeyFrame[]
+    keyFrames: KeyChange[]
     levelId: string
-    replayFrames: ReplayFrame[]
   }
 
   type GhostMode = 'off' | 'mine' | 'best'
@@ -110,39 +97,24 @@ function Game() {
     const level = level1
     let ghostMode: GhostMode = 'mine'
 
-    const createRocket = () => ({
-      x: level.startX,
-      y: level.startY,
-      vx: 0,
-      vy: 0,
-      angle: 0,
-      angularVelocity: 0,
-    })
-
     // game state
-    let rocket = createRocket()
+    let rocket = createRocket(level)
     const sideBoosterWidth = 10
     const sideBoosterHeight = 15
-
-    const gravity = level.gravity
-    const thrust = level.thrust
-    const turnThrust = level.turnThrust
-    const angularDamping = level.angularDamping
 
     const keys = new Set<string>()
     let frameId = 0
     let gameState: 'playing' | 'landed' | 'crashed' = 'playing'
     let resultMessage = ''
     let frameCount = 0
-    let keyFrames: KeyFrame[] = []
-    let replayFrames: ReplayFrame[] = []
+    let keyFrames: KeyChange[] = []
 
     const attempts: Attempt[] = []
 
-    const normaliseAngle = (angle: number) => {
-      return Math.atan2(Math.sin(angle), Math.cos(angle))
-    }
-    
+    // ghost replays are re-simulated from key changes; cache per source attempt
+    let ghostSource: unknown = null
+    let ghostReplay: ReplayFrame[] = []
+
     const getBestLocalLanding = () => {
       return attempts
         .filter((attempt) => attempt.levelId === level.id && attempt.outcome === 'landed')
@@ -156,6 +128,18 @@ function Game() {
       return myBestAttemptRef.current ?? getBestLocalLanding()
     }
 
+    const getGhostReplay = () => {
+      const attempt = getGhostAttempt()
+      if (!attempt) return undefined
+
+      if (ghostSource !== attempt) {
+        ghostSource = attempt
+        ghostReplay = simulateReplay(attempt.keyFrames, attempt.frames, level)
+      }
+
+      return ghostReplay
+    }
+
     const getNextGhostMode = () => {
       if (ghostMode === 'mine') return 'best'
       if (ghostMode === 'best') return 'off'
@@ -165,11 +149,10 @@ function Game() {
 
     const resetGame = () => {
       resultMessage = ''
-      rocket = createRocket()
+      rocket = createRocket(level)
       gameState = 'playing'
       frameCount = 0
       keyFrames = []
-      replayFrames = []
     }
 
     const keydownHandler = (e: KeyboardEvent) => {
@@ -338,35 +321,25 @@ function Game() {
     const stepSim = () => {
       if (gameState === 'playing') {
         frameCount += 1
-        keyFrames.push({
-          frame: frameCount,
+
+        const input = {
           w: keys.has('w'),
           a: keys.has('a'),
           d: keys.has('d'),
-        })
-
-        // vertical movement
-        rocket.vy += gravity
-        if (keys.has('w')) {
-          rocket.vx += Math.sin(rocket.angle) * thrust
-          rocket.vy -= Math.cos(rocket.angle) * thrust
         }
-        rocket.y += rocket.vy
-        rocket.x += rocket.vx
 
-        replayFrames.push({
-          frame: frameCount,
-          x: rocket.x,
-          y: rocket.y,
-          angle: rocket.angle
-        })
+        // only record when the held keys change, not every frame
+        const lastChange = keyFrames[keyFrames.length - 1]
+        if (
+          !lastChange ||
+          lastChange.w !== input.w ||
+          lastChange.a !== input.a ||
+          lastChange.d !== input.d
+        ) {
+          keyFrames.push({ frame: frameCount, ...input })
+        }
 
-        // rotation movement
-        if (keys.has('a')) rocket.angularVelocity -= turnThrust
-        if (keys.has('d')) rocket.angularVelocity += turnThrust
-        rocket.angle += rocket.angularVelocity
-        rocket.angle = normaliseAngle(rocket.angle)
-        rocket.angularVelocity *= angularDamping
+        stepRocket(rocket, input, level)
       }
 
       const rocketBottom = rocket.y + rocketHeight + 20
@@ -401,7 +374,6 @@ function Game() {
           reason: resultMessage,
           keyFrames: [...keyFrames],
           levelId: level.id,
-          replayFrames: [...replayFrames]
         }
 
         attempts.push(attempt)
@@ -449,9 +421,7 @@ function Game() {
       }
 
 
-      const ghostAttempt = getGhostAttempt()
-      const ghostFrame = ghostAttempt?.replayFrames[frameCount - 1]
-      const ghostKeys = ghostAttempt?.keyFrames[frameCount - 1]
+      const ghostFrame = getGhostReplay()?.[frameCount - 1]
 
       if (ghostFrame) {
         drawRocket(
@@ -464,7 +434,7 @@ function Game() {
             angularVelocity: 0
           },
           0.35,
-          ghostKeys ?? { w: false, a: false, d: false }
+          ghostFrame
         )
       }
       drawRocket()

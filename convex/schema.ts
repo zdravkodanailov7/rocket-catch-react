@@ -18,7 +18,8 @@ export default defineSchema({
     outcome: v.union(v.literal('landed'), v.literal('crashed')),
     reason: v.string(),
     keyFrames: v.array(keyFrame),
-    replayFrames: v.array(replayFrame),
+    // legacy: kept optional so old documents stay valid; replays are now re-simulated from keyFrames
+    replayFrames: v.optional(v.array(replayFrame)),
     userId: v.string(),
     createdAt: v.number(),
   })

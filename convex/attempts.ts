@@ -1,6 +1,6 @@
 import { mutation, query } from './_generated/server'
 import { v } from 'convex/values'
-import { keyFrame, replayFrame } from './validators'
+import { keyFrame } from './validators'
 
 const getDisplayName = (identity: {
   name?: string
@@ -19,7 +19,6 @@ export const save = mutation({
     outcome: v.union(v.literal('landed'), v.literal('crashed')),
     reason: v.string(),
     keyFrames: v.array(keyFrame),
-    replayFrames: v.array(replayFrame),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity()

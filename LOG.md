@@ -29,7 +29,7 @@ Each entry: **Built** (what I made), **Learned** (concepts / gotchas), **Next** 
 ### Code review todos (2026-07-01)
 - [x] Frame-rate independent physics: step the sim at a fixed 60Hz with an accumulator so gravity and leaderboard times match across 60/120/144Hz displays. (implemented 2026-07-01)
 - [x] Ghost flames: `drawRocket` reads the live `keys` set, so the ghost fires its engine when the player presses W — replay the ghost's own `keyFrames` instead. (implemented 2026-07-01)
-- [ ] Replay payload size: `keyFrames`/`replayFrames` store an entry every frame (~7,200 objects per minute; Convex docs cap at 1MB) — record key *changes* only, and consider re-simulating replays from inputs instead of storing positions.
+- [x] Replay payload size: `keyFrames`/`replayFrames` store an entry every frame (~7,200 objects per minute; Convex docs cap at 1MB) — record key *changes* only, and consider re-simulating replays from inputs instead of storing positions. (implemented 2026-07-01: sparse `keyFrames`, `replayFrames` dropped, ghosts re-simulated via `src/sim.ts`)
 - [ ] Leaderboard dedupe: it currently shows top 10 *attempts*, not players, so one player can fill every slot. Also the query does `take(10)` but the UI does `slice(0, 5)`.
 - [ ] Anti-cheat: `attempts.save` trusts whatever the client sends — validate claimed times server-side by re-simulating from `keyFrames` (needs the deterministic sim above).
 - [ ] Small fixes: pad centering uses a hardcoded `- 75` instead of `padWidth / 2`; magic `+ 20` nozzle offset in the collision check; no window-resize handling.
