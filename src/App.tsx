@@ -1,8 +1,11 @@
 import { useEffect, useRef } from "react"
+import { useMutation, Authenticated, Unauthenticated, AuthLoading, AuthRefreshing } from "convex/react"
+import { api } from '../convex/_generated/api'
+import { SignInButton, UserButton } from '@clerk/react'
 
-function App() {
+function Game() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-
+  const saveAttempt = useMutation(api.attempts.save)
   const rocketWidth = 50
   const rocketHeight = 100
 
@@ -77,6 +80,10 @@ function App() {
 
     const attempts: Attempt[] = []
 
+    const normaliseAngle = (angle: number) => {
+      return Math.atan2(Math.sin(angle), Math.cos(angle))
+    }
+    
     const getBestLanding = () => {
       return attempts
         .filter((attempt) => attempt.levelId === level.id && attempt.outcome === 'landed')
@@ -211,6 +218,9 @@ function App() {
     }
 
     const drawHUD = () => {
+      const hudTop = 72
+      const debugTop = hudTop
+
       const drawKey = (label: string, x: number, y: number, active: boolean) => {
         ctx.fillStyle = active ? '#eab308' : '#374151'
         ctx.fillRect(x, y, 36, 36)
@@ -225,14 +235,14 @@ function App() {
 
       // top left
       ctx.textAlign = 'left'
-      ctx.fillText('W thrust | A/D rotate | R reset', 16, 24)
-      ctx.fillText('Target: land on yellow pad', 16, 48)
-      ctx.fillText('Safe: vy < 1 | vx < 0.5 | angle < 0.2', 16, 72)
-      drawKey('W', 56, 96, keys.has('w'))
-      drawKey('A', 16, 136, keys.has('a'))
-      drawKey('D', 96, 136, keys.has('d'))
+      ctx.fillText('W thrust | A/D rotate | R reset', 16, hudTop)
+      ctx.fillText('Target: land on yellow pad', 16, hudTop + 24)
+      ctx.fillText('Safe: vy < 1 | vx < 0.5 | angle < 0.2', 16, hudTop + 48)
+      drawKey('W', 56, hudTop + 72, keys.has('w'))
+      drawKey('A', 16, hudTop + 112, keys.has('a'))
+      drawKey('D', 96, hudTop + 112, keys.has('d'))
       ctx.textAlign = 'left'
-      ctx.fillText(`Attempt ${attempts.length + 1}`, 16, 204)
+      ctx.fillText(`Attempt ${attempts.length + 1}`, 16, hudTop + 180)
 
       // top middle
       ctx.textAlign = 'center'
@@ -240,11 +250,11 @@ function App() {
 
       // top right
       ctx.textAlign = 'right'
-      ctx.fillText(`rocket.vy: ${rocket.vy.toFixed(2)}`, canvas.width - 16, 24)
-      ctx.fillText(`y: ${rocket.y.toFixed(2)}`, canvas.width - 16, 48)
-      ctx.fillText(`rocket.vx: ${rocket.vx.toFixed(2)}`, canvas.width - 16, 72)
-      ctx.fillText(`rocket.angle: ${rocket.angle.toFixed(2)}`, canvas.width - 16, 96)
-      ctx.fillText(`ghost: ${showGhost ? 'on' : 'off'} (g)`, canvas.width - 16, 140)
+      ctx.fillText(`rocket.vy: ${rocket.vy.toFixed(2)}`, canvas.width - 16, debugTop)
+      ctx.fillText(`y: ${rocket.y.toFixed(2)}`, canvas.width - 16, debugTop + 24)
+      ctx.fillText(`rocket.vx: ${rocket.vx.toFixed(2)}`, canvas.width - 16, debugTop + 48)
+      ctx.fillText(`rocket.angle: ${rocket.angle.toFixed(2)}`, canvas.width - 16, debugTop + 72)
+      ctx.fillText(`ghost: ${showGhost ? 'on' : 'off'} (g)`, canvas.width - 16, debugTop + 116)
     }
 
     const loop = () => {
@@ -281,6 +291,7 @@ function App() {
         if (keys.has('a')) rocket.angularVelocity -= turnThrust
         if (keys.has('d')) rocket.angularVelocity += turnThrust
         rocket.angle += rocket.angularVelocity
+        rocket.angle = normaliseAngle(rocket.angle)
         rocket.angularVelocity *= 0.98
       }
 
@@ -309,7 +320,7 @@ function App() {
           resultMessage = 'LANDED'
         }
 
-        attempts.push({
+        const attempt = {
           frames: frameCount,
           timeSeconds: frameCount / 60,
           outcome: gameState,
@@ -317,7 +328,10 @@ function App() {
           keyFrames: [...keyFrames],
           levelId: level.id,
           replayFrames: [...replayFrames]
-        })
+        }
+
+        attempts.push(attempt)
+        void saveAttempt(attempt)
 
         rocket.vy = 0
         rocket.vx = 0
@@ -371,6 +385,31 @@ function App() {
 
   return (
     <canvas ref={canvasRef} />
+  )
+}
+
+function App() {
+  return (
+    <>
+      <Unauthenticated>
+        <div className='auth-screen'>
+          <h1>Rocket Catch</h1>
+          <SignInButton mode='modal' />
+        </div>
+      </Unauthenticated>
+
+      <Authenticated>
+        <div className="game-shell">
+          <div className="user-menu">
+            <UserButton />
+          </div>
+          <Game />
+        </div>
+      </Authenticated>
+
+      <AuthLoading>Loading...</AuthLoading>
+      <AuthRefreshing>Refreshing...</AuthRefreshing>
+    </>
   )
 }
 
