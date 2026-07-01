@@ -47,6 +47,7 @@ function App() {
 
   useEffect(() => {
     const level = level1
+    let showGhost = true
 
     const createRocket = () => ({
       x: level.startX,
@@ -92,6 +93,10 @@ function App() {
     }
 
     const keydownHandler = (e: KeyboardEvent) => {
+      if (e.key === 'g') {
+        showGhost = !showGhost
+        return
+      }
       keys.add(e.key)
     }
 
@@ -239,6 +244,7 @@ function App() {
       ctx.fillText(`y: ${rocket.y.toFixed(2)}`, canvas.width - 16, 48)
       ctx.fillText(`rocket.vx: ${rocket.vx.toFixed(2)}`, canvas.width - 16, 72)
       ctx.fillText(`rocket.angle: ${rocket.angle.toFixed(2)}`, canvas.width - 16, 96)
+      ctx.fillText(`ghost: ${showGhost ? 'on' : 'off'} (g)`, canvas.width - 16, 140)
     }
 
     const loop = () => {
@@ -336,7 +342,7 @@ function App() {
       const bestLanding = getBestLanding()
       const ghostFrame = bestLanding?.replayFrames[frameCount - 1]
 
-      if (ghostFrame) {
+      if (showGhost && ghostFrame) {
         drawRocket(
           {
             x: ghostFrame.x,
